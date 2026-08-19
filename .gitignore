@@ -1,2 +1,6 @@
 .env
-.doc/
+doc/*
+
+__pycache__/
+*.pyc
+*.py[cod]
