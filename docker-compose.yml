@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  database_lokal:
+    image: postgres:15      # Kita pesan Postgres versi 15
+    container_name: db_chat # Nama kotaknya
+    restart: always
+    environment:            # Ini otomatis membuat user dan database-nya!
+      POSTGRES_USER: abimanyu
+      POSTGRES_PASSWORD: rahasia123
+      POSTGRES_DB: chatbot_db
+    ports:
+      - "5432:5432"         # Buka pintu dari kotak ke laptopmu (Port 5432 standar Postgres)
