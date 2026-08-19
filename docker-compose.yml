@@ -2,12 +2,12 @@ version: '3.8'
 
 services:
   database_lokal:
-    image: postgres:15      # Kita pesan Postgres versi 15
-    container_name: db_chat # Nama kotaknya
+    image: postgres:15
+    container_name: ${ENV_CONTAINER_NAME}
     restart: always
-    environment:            # Ini otomatis membuat user dan database-nya!
+    environment:           
       POSTGRES_USER: ${ENV_DB_USER}
       POSTGRES_PASSWORD: ${ENV_DB_PASSWORD}
       POSTGRES_DB: ${ENV_DB_NAME}
     ports:
-      - "5432:5432"         # Buka pintu dari kotak ke laptopmu (Port 5432 standar Postgres)
+      - "5432:5432"
