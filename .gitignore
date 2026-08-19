@@ -1,4 +1,6 @@
 .env
+.txt
+
 doc/*
 
 __pycache__/

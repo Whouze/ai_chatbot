@@ -5,8 +5,13 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     DATABASE_URL: str
+    
     GEMINI_API_KEY: str
+    GEMINI_MODEL: str
+    
     HASHING_STRING: str
+    PROMPT_FOLDER: str
+    PROMPT_SYSTEM: str
 
     model_config = SettingsConfigDict(
         env_file=".env",

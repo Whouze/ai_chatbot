@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-from core.config import settings
+from utils.config import settings
 
 # 1. Connection URL to Docker Database
 SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
@@ -28,4 +28,4 @@ def get_db():
     try:
         yield db        # Pass connection session to router -> service -> repository
     finally:
-        db.close()      # Automatically close connection session when request finishes
+        db.close()      # Automatically close connection session when request finishes
