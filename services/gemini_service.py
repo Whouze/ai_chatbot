@@ -1,6 +1,7 @@
 from pathlib import Path
 from google import genai
 from google.genai import types
+from google.genai.chats import Chat
 
 from utils.config import settings
 from utils.logger import logger
@@ -32,23 +33,31 @@ class GeminiService:
         # Inisialisasi Client resmi SDK baru google-genai
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self.system_instruction = read_system_prompt()
-
-    def generate_response(self, user_input: str) -> str:
-        """Generates a response from Gemini API using the new Client SDK."""
-        try:
-            logger.info("Sending request to Gemini API via google-genai SDK...")
-
-            config = None
-            if self.system_instruction:
-                config = types.GenerateContentConfig(
-                    system_instruction=self.system_instruction
-                )
-
-            response = self.client.models.generate_content(
-                model=settings.GEMINI_MODEL,
-                contents=user_input,
-                config=config
+        self.config = (
+            types.GenerateContentConfig(
+                system_instruction=self.system_instruction
             )
+            if self.system_instruction
+            else None
+        )
+        self.sessions: dict[str, Chat] = {}  # Dictionary to manage chat sessions per user
+
+    def Generate_Session(self, user_id: str) -> Chat:
+        """Creates or retrieves a chat session for a given user ID."""
+        if user_id not in self.sessions:
+            self.sessions[user_id] = self.client.chats.create(
+                model=settings.GEMINI_MODEL,
+                config=self.config
+            )
+        return self.sessions[user_id]
+
+    def Handling_TextResponse(self, user_id: str, user_input: str) -> str:
+        """Generates a response from Gemini API using chat session."""
+        try:
+            logger.info(f"Sending request to Gemini API via google-genai SDK for user '{user_id}'...")
+
+            chat = self.Generate_Session(user_id=user_id)
+            response = chat.send_message(user_input)
 
             logger.info("Successfully received response from Gemini API.")
             return response.text
