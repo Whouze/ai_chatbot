@@ -1,29 +1,12 @@
-from pathlib import Path
 from google import genai
 from google.genai import types
 from google.genai.chats import Chat
 
 from utils.config import settings
+from utils.loaders import read_system_prompt
 from utils.logger import logger
 
-# Path setup for system prompt file
-CURRENT_DIR = Path(__file__).resolve().parent
-BASE_DIR = CURRENT_DIR.parent
-PROMPT_PATH = BASE_DIR / settings.PROMPT_FOLDER / settings.PROMPT_SYSTEM
-
-
-def read_system_prompt(prompt_path: Path = PROMPT_PATH) -> str | None:
-    """Reads system prompt file content. Returns None if empty or missing."""
-    try:
-        with open(prompt_path, "r", encoding="utf-8") as file:
-            content = file.read().strip()
-            return content if content else None
-    except FileNotFoundError:
-        logger.error(f"Prompt file '{prompt_path}' not found.")
-        return None
-    except Exception as e:
-        logger.error(f"Error reading system prompt file: {e}")
-        return None
+from services.rag_service import RagService
 
 
 class GeminiService:
@@ -41,6 +24,7 @@ class GeminiService:
             else None
         )
         self.sessions: dict[str, Chat] = {}  # Dictionary to manage chat sessions per user
+        self.rag_service = RagService()
 
     def Generate_Session(self, user_id: str) -> Chat:
         """Creates or retrieves a chat session for a given user ID."""
@@ -57,7 +41,23 @@ class GeminiService:
             logger.info(f"Sending request to Gemini API via google-genai SDK for user '{user_id}'...")
 
             chat = self.Generate_Session(user_id=user_id)
-            response = chat.send_message(user_input)
+            
+            # Cukup panggil dengan threshold 0.45 tanpa download apapun
+            context, score = self.rag_service.retrieve_with_rerank(user_input, threshold=0.45)
+            if context:
+                logger.info(f"Context retrieved from RAG: {context} with score {score:.4f}")
+                message = f"""
+                            Relevant knowledge:
+                            {context}
+
+                            User message:
+                            {user_input}
+                            """
+            else:
+                logger.info("No relevant context found from RAG. Proceeding with user input only.")
+                message = user_input
+            
+            response = chat.send_message(message)
 
             logger.info("Successfully received response from Gemini API.")
             return response.text

@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     HASHING_STRING: str
     PROMPT_FOLDER: str
     PROMPT_SYSTEM: str
+    
+    KNOWLEDGE_FOLDER: str
+    KNOWLEDGE_FILE: str
+
 
     model_config = SettingsConfigDict(
         env_file=".env",

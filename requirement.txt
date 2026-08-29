@@ -7,3 +7,10 @@ sqlalchemy
 psycopg2-binary
 google-genai
 pytest
+
+# RAG & Machine Learning
+sentence-transformers
+scikit-learn
+torch
+pandas
+numpy
