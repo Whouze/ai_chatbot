@@ -35,35 +35,49 @@ class GeminiService:
             )
         return self.sessions[user_id]
 
-    def Handling_TextResponse(self, user_id: str, user_input: str) -> str:
-        """Generates a response from Gemini API using chat session."""
+    def upload_file(self, file_path: str):
+        """Uploads a file to Gemini API and returns the file object."""
+        # SDK google-genai terbaru bisa langsung menggunakan objek kembalian ini
+        return self.client.files.upload(file=file_path)
+
+    def Handling_TextAndMediaResponse(self, user_id: str, user_input: str, file_paths: list[str] = None) -> str:
+        """Generates a response using chat session, supporting RAG and media files."""
         try:
             logger.info(f"Sending request to Gemini API via google-genai SDK for user '{user_id}'...")
-
             chat = self.Generate_Session(user_id=user_id)
             
-            # Cukup panggil dengan threshold 0.45 tanpa download apapun
-            context, score = self.rag_service.retrieve_with_rerank(user_input, threshold=0.45)
+            # 1. Logika RAG Tetap Berjalan
+            context, score = self.rag_service.retrieve_with_rerank(user_input, threshold=0.65)
+
             if context:
                 logger.info(f"Context retrieved from RAG: {context} with score {score:.4f}")
-                message = f"""
-                            Relevant knowledge:
-                            {context}
-
-                            User message:
-                            {user_input}
-                            """
+                final_text = f"Relevant knowledge:\n{context}\n\nUser message:\n{user_input}"
             else:
                 logger.info("No relevant context found from RAG. Proceeding with user input only.")
-                message = user_input
+                final_text = user_input
+
+            # 2. Siapkan Payload (Berupa List)
+            contents = [final_text]
             
-            response = chat.send_message(message)
+            # 3. Proses File Gambar/Media Jika Ada
+            if file_paths:
+                for path in file_paths:
+                    uploaded_file = self.upload_file(path)
+                    contents.append(uploaded_file)
+            
+            # 4. Kirim List berisi Teks (+ File) ke Gemini
+            response = chat.send_message(contents)
 
             logger.info("Successfully received response from Gemini API.")
             return response.text
+            
         except Exception as e:
             logger.error(f"Error generating response from Gemini API: {e}")
             return "Sorry, I couldn't process your request at the moment."
+
+    def Handling_TextResponse(self, user_id: str, user_input: str) -> str:
+        """Backward-compatible text-only response handler."""
+        return self.Handling_TextAndMediaResponse(user_id=user_id, user_input=user_input)
 
 
 # Alias for backward compatibility

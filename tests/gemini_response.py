@@ -14,7 +14,8 @@ def test_generate_response():
         
         response = service.Handling_TextResponse(user_id="test_user", user_input=user_input)
         
-        print(f"[GEMINI RESPONSE]: {response}\n")
+        print(f"[User]: {user_input}")
+        print(f"[Bobby]: {response}\n")
         
         assert isinstance(response, str)
 
