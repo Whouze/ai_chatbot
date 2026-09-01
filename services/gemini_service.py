@@ -40,13 +40,18 @@ class GeminiService:
         # SDK google-genai terbaru bisa langsung menggunakan objek kembalian ini
         return self.client.files.upload(file=file_path)
 
-    def Handling_TextAndMediaResponse(self, user_id: str, user_input: str, file_paths: list[str] = None) -> str:
+    def Handling_GeminiResponse(
+        self, 
+        user_id: str, 
+        user_input: str, 
+        file_paths: list[str] | None = None, 
+        streaming: bool = False
+    ):
         """Generates a response using chat session, supporting RAG and media files."""
         try:
             logger.info(f"Sending request to Gemini API via google-genai SDK for user '{user_id}'...")
             chat = self.Generate_Session(user_id=user_id)
             
-            # 1. Logika RAG Tetap Berjalan
             context, score = self.rag_service.retrieve_with_rerank(user_input, threshold=0.65)
 
             if context:
@@ -55,29 +60,35 @@ class GeminiService:
             else:
                 logger.info("No relevant context found from RAG. Proceeding with user input only.")
                 final_text = user_input
-
-            # 2. Siapkan Payload (Berupa List)
+            
             contents = [final_text]
             
-            # 3. Proses File Gambar/Media Jika Ada
             if file_paths:
                 for path in file_paths:
                     uploaded_file = self.upload_file(path)
                     contents.append(uploaded_file)
             
-            # 4. Kirim List berisi Teks (+ File) ke Gemini
-            response = chat.send_message(contents)
-
-            logger.info("Successfully received response from Gemini API.")
-            return response.text
+            if streaming:
+                # Menggunakan send_message_stream resmi dari SDK google-genai
+                response_stream = chat.send_message_stream(contents)
+                for chunk in response_stream:
+                    if chunk.text:
+                        yield chunk.text
+            else:
+                response = chat.send_message(contents)
+                return response.text
             
         except Exception as e:
             logger.error(f"Error generating response from Gemini API: {e}")
-            return "Sorry, I couldn't process your request at the moment."
+            if streaming:
+                yield "Sorry, I couldn't process your request at the moment."
+            else:
+                return "Sorry, I couldn't process your request at the moment."
 
     def Handling_TextResponse(self, user_id: str, user_input: str) -> str:
         """Backward-compatible text-only response handler."""
-        return self.Handling_TextAndMediaResponse(user_id=user_id, user_input=user_input)
+        return self.Handling_GeminiResponse(user_id=user_id, user_input=user_input, streaming=False)
+
 
 
 # Alias for backward compatibility
