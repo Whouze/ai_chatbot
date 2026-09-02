@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     APP_NAME: str = "AI Chatbot API"
     DEBUG: bool = True
+    LOG_LEVEL: str = "INFO"
     
     DATABASE_URL: str
     
@@ -15,6 +16,15 @@ class Settings(BaseSettings):
     
     KNOWLEDGE_FOLDER: str
     KNOWLEDGE_FILE: str
+    KNOWLEDGE_SUPPORTED_TYPES: list[str] = [
+        "json",
+        "pdf",
+        "xlsx",
+        "xls",
+        "csv",
+        "txt",
+        "md",
+    ]
 
 
     model_config = SettingsConfigDict(

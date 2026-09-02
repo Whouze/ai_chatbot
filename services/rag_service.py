@@ -28,8 +28,15 @@ class RagService:
 
         if self.kb_texts:
             self.doc_embeddings = self.model_emb.encode(self.kb_texts)
+
+            # Precompute TF-IDF matrix sekali saja saat init
+            self.tfidf = TfidfVectorizer()
+            self.tfidf_matrix = self.tfidf.fit_transform(self.kb_texts)
+            logger.info(f"TF-IDF matrix precomputed for {len(self.kb_texts)} entries.")
         else:
             self.doc_embeddings = np.array([])
+            self.tfidf = None
+            self.tfidf_matrix = None
 
     def retrieve_with_rerank(self, query: str, top_k: int = 10, threshold: float = 0.6, normalize: bool = True):
         """
@@ -43,15 +50,13 @@ class RagService:
             logger.warning("Knowledge base is empty. Skipping RAG retrieval.")
             return None, 0.0
 
+        # 1. Semantic Search
         query_emb = self.model_emb.encode([query])
         semantic_scores = cosine_similarity(query_emb, self.doc_embeddings)[0]
 
-        tfidf = TfidfVectorizer()
-        tfidf_matrix = tfidf.fit_transform(self.kb_texts + [query])
-        keyword_scores = cosine_similarity(
-            tfidf_matrix[-1:], 
-            tfidf_matrix[:-1]
-        )[0]
+        # 2. Keyword Search (TF-IDF) — gunakan matrix yang sudah di-precompute
+        query_tfidf = self.tfidf.transform([query])
+        keyword_scores = cosine_similarity(query_tfidf, self.tfidf_matrix)[0]
 
         # Ubah dari 0.5 & 0.5 menjadi 0.85 Semantic (Multilingual) & 0.15 TF-IDF
         combined_scores = 0.85 * semantic_scores + 0.15 * keyword_scores
@@ -59,6 +64,7 @@ class RagService:
         top_k_indices = np.argsort(combined_scores)[-top_k:][::-1]
         candidates = [self.kb_texts[i] for i in top_k_indices]
 
+        # 3. Reranking dengan CrossEncoder
         pairs = [(query, doc) for doc in candidates]
         raw_rerank_scores = self.reranker.predict(pairs)
 

@@ -2,13 +2,17 @@ import logging
 import sys
 from pathlib import Path
 
+from utils.config import settings
+
 LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d - %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 def setup_logger(name: str = "app_logger", log_file: str | None = "logs/app.log") -> logging.Logger:
     """Configures and returns a structured logger instance."""
+    log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(log_level)
 
     if logger.hasHandlers():
         return logger
@@ -17,7 +21,7 @@ def setup_logger(name: str = "app_logger", log_file: str | None = "logs/app.log"
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(log_level)
     logger.addHandler(console_handler)
 
     if log_file:

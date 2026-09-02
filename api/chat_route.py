@@ -43,11 +43,10 @@ async def chat_websocket_endpoint(websocket: WebSocket, user_id: str):
             logger.info(f"Received valid message from user '{user_id}': {payload.message[:30]}...")
 
             # 3. Stream balasan Gemini + RAG kata demi kata
-            for chunk_text in gemini_service.Handling_GeminiResponse(
+            for chunk_text in gemini_service.Handling_GeminiStreamResponse(
                 user_id=user_id,
                 user_input=payload.message,
-                file_paths=payload.file_paths,
-                streaming=True
+                file_paths=payload.file_paths
             ):
                 stream_res = WebSocketStreamChunk(content=chunk_text)
                 await manager.send_json(stream_res.model_dump(), websocket)
