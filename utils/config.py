@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     PROMPT_FOLDER: str
     PROMPT_SYSTEM: str
     
+    # JWT Settings
+    JWT_SECRET_KEY: str
+    JWT_ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+
+    
     KNOWLEDGE_FOLDER: str
     KNOWLEDGE_FILE: str
     KNOWLEDGE_SUPPORTED_TYPES: list[str] = [

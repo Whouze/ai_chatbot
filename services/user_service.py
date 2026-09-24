@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-import hashlib
 
-from schemas.user_schema import RegisterUser, ProfileUser
+from schemas.user_schema import RegisterUser, ProfileUser, LoginUser, Token
 from repository.user_repository import UserRepository
+from core.security import get_password_hash, verify_password, create_access_token
 
 
 class UserService:
@@ -20,13 +20,16 @@ class UserService:
                 detail="Email already exists"
             )
 
-        hashed_password = hashlib.sha256(user_data.password.encode()).hexdigest()
+        # 1. Hash password menggunakan bcrypt
+        hashed_password = get_password_hash(user_data.password)
+        
+        # 2. Simpan ke database
         new_user = self.user_repository.create_user(user_data, hashed_password)
         
         return ProfileUser.model_validate(new_user)
 
-    def login_user(self, user_data: RegisterUser, db: Session) -> ProfileUser:
-        """Login a user by verifying email and password."""
+    def login_user(self, user_data: LoginUser, db: Session) -> Token:
+        """Login a user by verifying email and password, then returning a JWT token."""
         user = self.user_repository.get_user_by_email(user_data.email)
         if not user:
             raise HTTPException(
@@ -34,13 +37,21 @@ class UserService:
                 detail="Invalid email or password"
             )
 
-        hashed_password = hashlib.sha256(user_data.password.encode()).hexdigest()
-        if user.password != hashed_password:
+        # 3. Verifikasi password dengan bcrypt
+        if not verify_password(user_data.password, user.password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password"
             )
 
-        return ProfileUser.model_validate(user)
+        # 4. Buat JWT Token
+        access_token = create_access_token(data={"sub": str(user.id)})
+        
+        # 5. Kembalikan Token + Profile
+        return Token(
+            access_token=access_token,
+            token_type="bearer",
+            user=ProfileUser.model_validate(user)
+        )
 
 

@@ -15,4 +15,8 @@ torch
 pandas
 numpy
 websockets
-
+langchain-community
+pypdf
+openpyxl
+passlib[bcrypt]
+PyJWT
