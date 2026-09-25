@@ -20,10 +20,10 @@ class UserService:
                 detail="Email already exists"
             )
 
-        # 1. Hash password menggunakan bcrypt
+        # 1. Hash the password using bcrypt
         hashed_password = get_password_hash(user_data.password)
         
-        # 2. Simpan ke database
+        # 2. Save the user to the database
         new_user = self.user_repository.create_user(user_data, hashed_password)
         
         return ProfileUser.model_validate(new_user)
@@ -37,17 +37,17 @@ class UserService:
                 detail="Invalid email or password"
             )
 
-        # 3. Verifikasi password dengan bcrypt
+        # 3. Verify the password with bcrypt
         if not verify_password(user_data.password, user.password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password"
             )
 
-        # 4. Buat JWT Token
+        # 4. Create the JWT token
         access_token = create_access_token(data={"sub": str(user.id)})
         
-        # 5. Kembalikan Token + Profile
+        # 5. Return the token and profile
         return Token(
             access_token=access_token,
             token_type="bearer",

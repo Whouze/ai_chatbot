@@ -11,10 +11,10 @@ class ChatSession(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    title = Column(String(100), nullable=False, default="Sesi Baru")
+    title = Column(String(100), nullable=False, default="New Session")
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # Relationship: 1 sesi bisa punya banyak pesan
+    # Relationship: one session can contain many messages
     messages = relationship("Message", back_populates="session", cascade="all, delete-orphan")
 
 
@@ -28,5 +28,5 @@ class Message(Base):
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # Relationship: setiap pesan terhubung ke 1 sesi
-    session = relationship("ChatSession", back_populates="messages")
+    # Relationship: each message belongs to one session
+    session = relationship("ChatSession", back_populates="messages")

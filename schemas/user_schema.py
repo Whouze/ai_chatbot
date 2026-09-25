@@ -51,7 +51,7 @@ class ProfileUser(UserBase):
     
     model_config = ConfigDict(from_attributes=True)
 
-# 6. TOKEN SCHEMA (Respons saat login berhasil)
+# 6. TOKEN SCHEMA (Response returned after a successful login)
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

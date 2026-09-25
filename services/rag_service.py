@@ -29,7 +29,7 @@ class RagService:
         if self.kb_texts:
             self.doc_embeddings = self.model_emb.encode(self.kb_texts)
 
-            # Precompute TF-IDF matrix sekali saja saat init
+            # Precompute the TF-IDF matrix once during initialization
             self.tfidf = TfidfVectorizer()
             self.tfidf_matrix = self.tfidf.fit_transform(self.kb_texts)
             logger.info(f"TF-IDF matrix precomputed for {len(self.kb_texts)} entries.")
@@ -54,17 +54,17 @@ class RagService:
         query_emb = self.model_emb.encode([query])
         semantic_scores = cosine_similarity(query_emb, self.doc_embeddings)[0]
 
-        # 2. Keyword Search (TF-IDF) — gunakan matrix yang sudah di-precompute
+        # 2. Keyword Search (TF-IDF) using the precomputed matrix
         query_tfidf = self.tfidf.transform([query])
         keyword_scores = cosine_similarity(query_tfidf, self.tfidf_matrix)[0]
 
-        # Ubah dari 0.5 & 0.5 menjadi 0.85 Semantic (Multilingual) & 0.15 TF-IDF
+        # Prefer multilingual semantic search while keeping TF-IDF as a small keyword signal
         combined_scores = 0.85 * semantic_scores + 0.15 * keyword_scores
 
         top_k_indices = np.argsort(combined_scores)[-top_k:][::-1]
         candidates = [self.kb_texts[i] for i in top_k_indices]
 
-        # 3. Reranking dengan CrossEncoder
+        # 3. Rerank candidates with CrossEncoder
         pairs = [(query, doc) for doc in candidates]
         raw_rerank_scores = self.reranker.predict(pairs)
 

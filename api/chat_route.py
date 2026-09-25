@@ -20,24 +20,31 @@ from schemas.chat_schema import (
     WebSocketErrorResponse
 )
 
-# Router untuk REST API (history)
+# Router for REST API history endpoints
 router = APIRouter(prefix="/chat", tags=["Chat History"])
 
-# Router untuk WebSocket (real-time chat)
+# Router for real-time WebSocket chat
 ws_router = APIRouter(prefix="/ws", tags=["WebSocket Chat"])
 
 gemini_service = GeminiService()
 
 
+from core.security import get_current_user
+from models.user_models import UserModels
+
 # ==========================================
 # REST API — CHAT HISTORY ENDPOINTS
 # ==========================================
 
-@router.get("/sessions/{user_id}", response_model=list[ChatSessionListResponse])
-def get_user_sessions(user_id: UUID, db: Session = Depends(get_db)):
-    """Retrieve all chat sessions belonging to a specific user."""
+@router.get("/sessions", response_model=list[ChatSessionListResponse])
+def get_user_sessions(
+    current_user: UserModels = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    """Retrieve all chat sessions belonging to the currently logged-in user."""
     chat_repo = ChatRepository(db)
-    sessions = chat_repo.get_sessions_by_user(user_id=user_id)
+    # Kita tidak butuh user_id dari URL lagi, karena otomatis diambil dari token!
+    sessions = chat_repo.get_sessions_by_user(user_id=current_user.id)
     if not sessions:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -47,15 +54,20 @@ def get_user_sessions(user_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.get("/history/{session_id}", response_model=list[MessageResponse])
-def get_session_history(session_id: UUID, db: Session = Depends(get_db)):
-    """Retrieve all messages within a specific chat session."""
+def get_session_history(
+    session_id: UUID, 
+    current_user: UserModels = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    """Retrieve all messages within a specific chat session securely."""
     chat_repo = ChatRepository(db)
 
     session = chat_repo.get_session_by_id(session_id=session_id)
-    if not session:
+    # Proteksi: Pastikan sesi ini benar-benar milik user yang sedang login!
+    if not session or session.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Chat session not found."
+            detail="Chat session not found or access denied."
         )
 
     messages = chat_repo.get_messages_by_session(session_id=session_id)
@@ -80,10 +92,10 @@ async def chat_websocket_endpoint(
 
     try:
         while True:
-            # 1. Terima payload JSON dari Frontend
+            # 1. Receive JSON payload from the frontend
             raw_data = await websocket.receive_json()
 
-            # 2. Validasi payload menggunakan Pydantic Schema
+            # 2. Validate payload using the Pydantic schema
             try:
                 payload = WebSocketChatRequest.model_validate(raw_data)
             except ValidationError as err:
@@ -96,7 +108,7 @@ async def chat_websocket_endpoint(
 
             logger.info(f"Received message from user '{user_id}': {payload.message[:50]}...")
 
-            # 3. Ambil atau buat sesi baru jika session_id tidak dikirim
+            # 3. Fetch or create a new session when session_id is not provided
             session_id: UUID = payload.session_id
             if not session_id:
                 new_session = chat_repo.create_session(
@@ -106,13 +118,13 @@ async def chat_websocket_endpoint(
                 session_id = new_session.id
                 logger.info(f"New chat session created: session_id='{session_id}'")
 
-            # 4. Simpan pesan user ke database
+            # 4. Save the user message to the database
             chat_repo.save_message(
                 session_id=session_id,
                 data=MessageCreate(sender="user", content=payload.message)
             )
 
-            # 5. Stream balasan Gemini + RAG per chunk kata ke WebSocket
+            # 5. Stream Gemini + RAG response chunks to the WebSocket
             full_ai_response = ""
             for chunk_text in gemini_service.Handling_GeminiStreamResponse(
                 user_id=user_id,
@@ -123,14 +135,14 @@ async def chat_websocket_endpoint(
                 stream_res = WebSocketStreamChunk(content=chunk_text)
                 await manager.send_json(stream_res.model_dump(), websocket)
 
-            # 6. Simpan balasan AI ke database setelah streaming selesai
+            # 6. Save the AI response to the database after streaming completes
             chat_repo.save_message(
                 session_id=session_id,
                 data=MessageCreate(sender="ai", content=full_ai_response)
             )
             logger.info(f"AI response saved to database for session '{session_id}'")
 
-            # 7. Kirim sinyal bahwa streaming selesai beserta session_id
+            # 7. Send the completion signal with the session_id
             done_res = WebSocketDoneResponse(session_id=session_id)
             await manager.send_json(done_res.model_dump(mode="json"), websocket)
 

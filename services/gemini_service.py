@@ -13,7 +13,7 @@ class GeminiService:
     """Service layer for interacting with the Google GenAI SDK."""
 
     def __init__(self):
-        # Inisialisasi Client resmi SDK baru google-genai
+        # Initialize the official client from the new google-genai SDK
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self.system_instruction = read_system_prompt()
         self.config = (
@@ -37,7 +37,7 @@ class GeminiService:
 
     def upload_file(self, file_path: str):
         """Uploads a file to Gemini API and returns the file object."""
-        # SDK google-genai terbaru bisa langsung menggunakan objek kembalian ini
+        # The latest google-genai SDK can use this returned object directly
         return self.client.files.upload(file=file_path)
 
     def _build_contents(self, user_input: str, file_paths: list[str] | None = None) -> list:
